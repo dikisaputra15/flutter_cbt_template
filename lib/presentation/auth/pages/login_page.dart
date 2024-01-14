@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_cbt_app/core/extensions/build_context_ext.dart';
+import 'package:flutter_cbt_app/data/datasources/auth_local_datasource.dart';
+import 'package:flutter_cbt_app/data/models/request/login_request_model.dart';
+import 'package:flutter_cbt_app/presentation/auth/bloc/login/login_bloc.dart';
 import 'package:flutter_cbt_app/presentation/auth/pages/register_page.dart';
 
 import '../../../core/components/buttons.dart';
@@ -50,11 +54,51 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
           const SizedBox(height: 42.0),
-          Button.filled(
-            onPressed: () {
-              context.pushReplacement(const DashboardPage());
+          BlocConsumer<LoginBloc, LoginState>(
+            listener: (context, state) {
+              state.maybeWhen(
+                orElse: () {},
+                success: (data) {
+                    //simpan data ke local storage
+                    AuthLocalDataSource().saveAuthData(data);
+                    //snackbar
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Login success',
+                          style: TextStyle(color: Colors.black),
+                        ),
+                        backgroundColor: AppColors.lightGreen,
+                      ),
+                    );
+                    context.pushReplacement(const DashboardPage());
+                },
+                error: (message) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(message,
+                            style: const TextStyle(color: Colors.black)),
+                        backgroundColor: AppColors.lightRed,
+                      ),
+                    );
+                });
             },
-            label: 'LOG IN',
+            builder: (context, state) {
+              return state.maybeWhen(
+                orElse: () => Button.filled(
+                  onPressed: () {
+                    //context.pushReplacement(const DashboardPage());
+                    final requestModel = LoginRequestModel(
+                        email: emailController.text,
+                        password: passwordController.text);
+                    context.read<LoginBloc>().add(LoginEvent.login(requestModel));
+                  },
+                  label: 'LOG IN',
+                ),
+                loading: () => const Center(
+                  child: CircularProgressIndicator(),
+                ));
+            },
           ),
           const SizedBox(height: 24.0),
           GestureDetector(
